@@ -1,0 +1,10 @@
+docs_dir: content
+markdown_extensions:
+- pymdownx.tasklist
+nav:
+- Home: index.md
+- API SDK:
+  - Model: pretix_event_person_forwarder/model.md
+repo_url: https://github.com/ZPascal/pretix_event_person_forwarder
+site_name: Pretix Event Person Forwarder
+theme: material

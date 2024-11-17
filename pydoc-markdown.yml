@@ -1,0 +1,24 @@
+loaders:
+  - type: python
+    search_path: [pretix_event_person_forwarder]
+processors:
+  - type: filter
+  - type: smart
+  - type: crossref
+renderer:
+  type: mkdocs
+  pages:
+    - title: Home
+      name: index
+      source: docs/pretix_event_person_forwarder.md
+    - title: Pretix Event Person Forwarder
+      name: pretix_event_person_forwarder
+      children:
+        - title: Model
+          contents: [ model.* ]
+  mkdocs_config:
+    site_name: Pretix Event Person Forwarder
+    theme: material
+    repo_url: https://github.com/ZPascal/pretix_event_person_forwarder
+    markdown_extensions:
+        - pymdownx.tasklist
