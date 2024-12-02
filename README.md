@@ -1,6 +1,9 @@
 # Pretix Event Person Forwarder
 
-## WIP
+## TODO 
+
+- [ ] Add Unittest
+- [ ] Add the forwarding logic
 
 ## Contribution
 If you would like to contribute something, have an improvement request, or want to make a change inside the code, please open a pull request.
