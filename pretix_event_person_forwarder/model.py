@@ -7,6 +7,7 @@ import httpx
 # The constant includes all necessary error messages that can occurs, if you establish a connection to the Grafana API.
 ERROR_MESSAGES: list = ["invalid API key", "Invalid API key", "Expired API key"]
 
+
 class APIEndpoints(Enum):
     """The class includes all necessary API endpoint strings to connect the Pretix API"""
 
@@ -14,8 +15,10 @@ class APIEndpoints(Enum):
     version_1: str = "v1"
     ORGANIZERS: str = f"/{api_prefix}/{version_1}/organizers"
     EVENTS: str = "events"
+    ITEMS: str = "items"
     ORDERS: str = "orders"
     QUESTIONS: str = "questions"
+
 
 class RequestsMethods(Enum):
     """The class includes all necessary method values to establish an HTTP/ HTTPS connection to the Pretix API endpoints"""
@@ -25,6 +28,7 @@ class RequestsMethods(Enum):
     POST: str = "POST"
     PATCH: str = "PATCH"
     DELETE: str = "DELETE"
+
 
 @dataclass
 class APIModel:

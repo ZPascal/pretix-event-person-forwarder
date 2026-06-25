@@ -12,13 +12,145 @@ jobs:
 
   pretix-event-person-forwarder-test:
     runs-on: ubuntu-latest
-    permissions: read-all
     strategy:
       matrix:
         python-version: [ '3.10' ]
 
     steps:
       - uses: actions/checkout@v7
+
+      - name: Check out pretix-docker-compose
+        uses: actions/checkout@v7
+        with:
+          repository: ZPascal/pretix-docker-compose
+          path: pretix-docker-compose
+
+      - name: Patch docker-compose to mount SSL certificates
+        working-directory: pretix-docker-compose
+        run: |
+          python3 << 'EOF'
+          import yaml
+
+          with open('docker-compose.yml', 'r') as f:
+              config = yaml.safe_load(f)
+
+          # Add SSL certificate volume mounts to the app service
+          if 'services' in config and 'app' in config['services']:
+              volumes = config['services']['app'].get('volumes', [])
+              ssl_mounts = [
+                  './docker/pretix/files/config/ssl/domain.crt:/var/pretix/config/ssl/domain.crt',
+                  './docker/pretix/files/config/ssl/domain.key:/var/pretix/config/ssl/domain.key'
+              ]
+              # Add only if not already present
+              for mount in ssl_mounts:
+                  if mount not in volumes:
+                      volumes.append(mount)
+              config['services']['app']['volumes'] = volumes
+
+          with open('docker-compose.yml', 'w') as f:
+              yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+          EOF
+
+      - name: Patch nginx config to support HTTPS with test certificates
+        working-directory: pretix-docker-compose
+        run: |
+          cat > docker/pretix/nginx/nginx.conf << 'EOF'
+          user pretixuser www-data;
+          worker_processes auto;
+          pid /var/run/nginx.pid;
+          daemon off;
+
+          events {
+              worker_connections 1024;
+          }
+
+          http {
+              include /etc/nginx/mime.types;
+              default_type application/octet-stream;
+              access_log /var/log/nginx/access.log;
+              error_log /var/log/nginx/error.log;
+
+              server {
+                  listen 80 default_server;
+                  listen 443 ssl default_server;
+                  server_name _;
+
+                  ssl_certificate /var/pretix/config/ssl/domain.crt;
+                  ssl_certificate_key /var/pretix/config/ssl/domain.key;
+
+                  location / {
+                      proxy_pass http://unix:/tmp/pretix.sock:;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header Host $http_host;
+                  }
+              }
+          }
+          EOF
+
+      - name: Generate test SSL certificates
+        working-directory: pretix-docker-compose
+        run: |
+          mkdir -p docker/pretix/files/config/ssl
+
+          # Generate test CA key and certificate
+          openssl genrsa -out docker/pretix/files/config/ssl/test-ca.key 2048
+          openssl req -new -x509 -days 365 -key docker/pretix/files/config/ssl/test-ca.key \
+            -out docker/pretix/files/config/ssl/test-ca.crt \
+            -subj "/C=DE/ST=State/L=City/O=Test/CN=Test-CA"
+
+          # Generate server key
+          openssl genrsa -out docker/pretix/files/config/ssl/domain.key 2048
+
+          # Generate server CSR
+          openssl req -new -key docker/pretix/files/config/ssl/domain.key \
+            -out docker/pretix/files/config/ssl/domain.csr \
+            -subj "/C=DE/ST=State/L=City/O=Test/CN=localhost"
+
+          # Create SAN extension file
+          cat > docker/pretix/files/config/ssl/san.ext << 'SANEOF'
+          subjectAltName=DNS:localhost,DNS:127.0.0.1
+          SANEOF
+
+          # Sign server certificate with test CA
+          openssl x509 -req -days 365 \
+            -in docker/pretix/files/config/ssl/domain.csr \
+            -CA docker/pretix/files/config/ssl/test-ca.crt \
+            -CAkey docker/pretix/files/config/ssl/test-ca.key \
+            -CAcreateserial -out docker/pretix/files/config/ssl/domain.crt \
+            -extfile docker/pretix/files/config/ssl/san.ext
+
+          # Verify certificate
+          openssl x509 -in docker/pretix/files/config/ssl/domain.crt -text -noout
+
+          # Cleanup CSR and SAN file
+          rm docker/pretix/files/config/ssl/domain.csr docker/pretix/files/config/ssl/san.ext
+
+      - name: Start Pretix via Docker Compose
+        working-directory: pretix-docker-compose
+        run: docker compose up -d
+
+      - name: Wait for Pretix to be healthy
+        run: |
+          for i in $(seq 1 60); do
+            STATUS=$(docker exec pretix_app curl -s -o /dev/null -w "%{http_code}" http://localhost/api/v1/ 2>/dev/null || echo "000")
+            if [ "$STATUS" = "401" ] || [ "$STATUS" = "200" ]; then
+              echo "Pretix is up (HTTP $STATUS)"
+              break
+            fi
+            echo "Waiting for Pretix... ($i/60, HTTP $STATUS)"
+            if [ "$i" = "30" ]; then
+              echo "--- docker logs (last 20 lines) ---"
+              docker logs pretix_app --tail 20
+            fi
+            sleep 10
+          done
+
+      - name: Create Pretix superuser, test data and API token
+        run: |
+          docker exec -e DJANGO_SUPERUSER_PASSWORD=admin pretix_app pretix createsuperuser --noinput \
+            --email admin@example.com >&2
+          TOKEN=$(docker exec -i pretix_app pretix shell < tests/integrationtest/setup_testdata.py | tail -1)
+          echo "PRETIX_TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -32,9 +164,17 @@ jobs:
 
       - name: Execute the integrationtests (http1.1)
         run: python3 -m unittest discover tests/integrationtest
+        env:
+          PRETIX_HOST: https://localhost
+          PRETIX_CA_BUNDLE: ${{ github.workspace }}/pretix-docker-compose/docker/pretix/files/config/ssl/test-ca.crt
+          PRETIX_TOKEN: ${{ env.PRETIX_TOKEN }}
 
       - name: Wait 20 seconds
         run: sleep 20
 
       - name: Execute the integrationtests (http2)
         run: python3 -m unittest discover tests/integrationtest
+        env:
+          PRETIX_HOST: https://localhost
+          PRETIX_CA_BUNDLE: ${{ github.workspace }}/pretix-docker-compose/docker/pretix/files/config/ssl/test-ca.crt
+          PRETIX_TOKEN: ${{ env.PRETIX_TOKEN }}
