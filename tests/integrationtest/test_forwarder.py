@@ -19,8 +19,10 @@ RULES = {
 
 
 class ForwarderIntegrationTest(TestCase):
-    source_model: APIModel = create_api_model_with_ssl(HOST, TOKEN, CA_BUNDLE)
-    dest_model: APIModel = create_api_model_with_ssl(HOST, TOKEN, CA_BUNDLE)
+    def setUp(self):
+        api_model = create_api_model_with_ssl(HOST, TOKEN, CA_BUNDLE)
+        self.source_model: APIModel = api_model
+        self.dest_model: APIModel = api_model
 
     def test_a_forward_persons_skip_mode(self):
         forwarder = Forwarder(

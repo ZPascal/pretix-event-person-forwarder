@@ -157,13 +157,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-          cache: 'pip'
 
-      - name: Install the requirements
-        run: pip install -r requirements.txt
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Execute the integrationtests (http1.1)
-        run: python3 -m unittest discover tests/integrationtest
+        run: uv run --extra dev python -m unittest discover tests/integrationtest
         env:
           PRETIX_HOST: https://localhost
           PRETIX_CA_BUNDLE: ${{ github.workspace }}/pretix-docker-compose/docker/pretix/files/config/ssl/test-ca.crt
@@ -173,7 +172,7 @@ jobs:
         run: sleep 20
 
       - name: Execute the integrationtests (http2)
-        run: python3 -m unittest discover tests/integrationtest
+        run: uv run --extra dev python -m unittest discover tests/integrationtest
         env:
           PRETIX_HOST: https://localhost
           PRETIX_CA_BUNDLE: ${{ github.workspace }}/pretix-docker-compose/docker/pretix/files/config/ssl/test-ca.crt
