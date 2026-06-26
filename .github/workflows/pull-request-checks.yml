@@ -20,17 +20,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-          cache: 'pip'
 
-      - name: Install the requirements
-        run: pip install -r requirements.txt
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Execute the unittests
-        run: python3 -m unittest discover tests/unittests
+        run: uv run --extra dev pytest tests/unittests
 
   pr-lint:
     runs-on: ubuntu-latest
-    permissions: write-all
     strategy:
       matrix:
         python-version: [ '3.10' ]
@@ -43,14 +41,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-          cache: 'pip'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Execute the linting checks
-        uses: reviewdog/action-flake8@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          flake8_args: --config=.flake8
-          fail_on_error: true
+        run: uv run --extra dev ruff check .
 
   pr-coverage:
     runs-on: ubuntu-latest
@@ -70,13 +66,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-          cache: 'pip'
 
-      - name: Install the requirements
-        run: pip install -r requirements.txt && pip install pytest pytest-cov coverage-badge
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Generate the coverage report
-        run: export PYTHONPATH=$PWD && pytest --junitxml=pytest.xml --cov=. tests/unittests | tee pytest-coverage.txt
+        run: export PYTHONPATH=$PWD && uv run --extra dev pytest --junitxml=pytest.xml --cov=. tests/unittests | tee pytest-coverage.txt
 
       - name: Execute the coverage checks
         uses: MishaKav/pytest-coverage-comment@v1.7.2
@@ -88,7 +83,7 @@ jobs:
           create-new-comment: true
 
       - name: Generate coverage badge
-        run: coverage-badge -f -o docs/coverage.svg
+        run: uv run --extra dev coverage-badge -f -o docs/coverage.svg
 
       - name: Check changed files
         uses: tj-actions/verify-changed-files@v20
@@ -130,7 +125,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-          cache: 'pip'
 
       - name: Install the requirements
         run: pip install pydoc-markdown==4.6.3 mkdocs mkdocs-material
