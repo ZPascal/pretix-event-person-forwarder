@@ -89,9 +89,7 @@ class TestForwarderValidation(TestCase):
                     "src-org", "src-event", "dst-org", "dst-event"
                 )
             # No POST or PATCH should have been called
-            for call in mock_api.call_args_list:
-                method_arg = call[1].get("method") or (call[0][1] if len(call[0]) > 1 else None)
-                self.assertIsNone(method_arg)
+            mock_api.assert_not_called()
 
 
 class TestForwarderCreateMode(TestCase):
@@ -165,6 +163,11 @@ class TestForwarderUpdateMode(TestCase):
             path_arg = call_args[0][0] if call_args[0] else call_args[1].get("api_call")
             self.assertIn("BBBBB", path_arg)
             self.assertIn("10", path_arg)
+            patch_payload = json.loads(call_args[1]["json_complete"] if "json_complete" in call_args[1] else call_args[0][2])
+            self.assertEqual(patch_payload["attendee_name"], "Jane Doe")
+            self.assertEqual(patch_payload["attendee_email"], "jane@example.com")
+            self.assertEqual(patch_payload["answers"][0]["question"], 312)
+            self.assertEqual(patch_payload["answers"][0]["answer"], "Berlin")
 
     def test_no_email_attendee_is_always_posted(self):
         source_orders_no_email = [

@@ -8,6 +8,21 @@ from .questions import Questions
 
 
 class Forwarder:
+    """The class includes all necessary methods to forward event persons between Pretix instances
+
+        Args:
+            source_api_model (APIModel): Inject an API model object for the source Pretix instance
+            dest_api_model (APIModel): Inject an API model object for the destination Pretix instance
+            rules (dict): A dictionary defining the field mapping rules between source and destination
+            mode (str): The forwarding mode; must be 'skip' to skip existing attendees or 'update' to patch them
+
+        Attributes:
+            source_api_model (APIModel): This is where we store the source_api_model
+            dest_api_model (APIModel): This is where we store the dest_api_model
+            rules (dict): This is where we store the rules
+            mode (str): This is where we store the mode
+        """
+
     def __init__(
         self,
         source_api_model: APIModel,
@@ -16,6 +31,7 @@ class Forwarder:
         mode: str,
     ):
         if mode not in ("skip", "update"):
+            logging.error(f"Invalid mode '{mode}'. Must be 'skip' or 'update'.")
             raise ValueError(f"Invalid mode '{mode}'. Must be 'skip' or 'update'.")
         self.source_api_model = source_api_model
         self.dest_api_model = dest_api_model
@@ -29,6 +45,22 @@ class Forwarder:
         dest_organizer: str,
         dest_event: str,
     ) -> None:
+        """The method includes a functionality to forward event persons from a source event to a destination event
+
+        Args:
+            source_organizer (str): Specify the organizer slug of the source Pretix instance
+            source_event (str): Specify the event slug on the source Pretix instance
+            dest_organizer (str): Specify the organizer slug of the destination Pretix instance
+            dest_event (str): Specify the event slug on the destination Pretix instance
+
+        Raises:
+            ValueError: Raised when a destination question ID defined in the rules is not found in the destination event
+            ValueError: Raised when an invalid mode is provided during initialisation
+
+        Returns:
+            None
+        """
+
         dest_question_ids = {
             q["id"]
             for q in Questions(self.dest_api_model).get_all_event_questions(
@@ -37,6 +69,7 @@ class Forwarder:
         }
         for mapping in self.rules.get("fields", {}).get("questions", []):
             if mapping["dest_id"] not in dest_question_ids:
+                logging.error(f"Destination question ID {mapping['dest_id']} not found in event '{dest_event}'.")
                 raise ValueError(
                     f"Destination question ID {mapping['dest_id']} not found in event '{dest_event}'."
                 )
@@ -53,6 +86,8 @@ class Forwarder:
             for position in order.get("positions", []):
                 email = position.get("attendee_email")
                 if email:
+                    if email in dest_by_email:
+                        logging.warning(f"Duplicate email in destination orders: {email}. Using latest position.")
                     dest_by_email[email] = {"order_code": order["code"], "position_id": position["id"]}
 
         question_map = {
