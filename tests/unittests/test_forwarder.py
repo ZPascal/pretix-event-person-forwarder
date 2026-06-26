@@ -1,6 +1,6 @@
 import json
 from unittest import TestCase
-from unittest.mock import patch, call
+from unittest.mock import patch
 
 from pretix_event_person_forwarder.model import APIModel
 from pretix_event_person_forwarder.forwarder import Forwarder

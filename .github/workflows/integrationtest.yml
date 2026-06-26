@@ -42,9 +42,9 @@ jobs:
 
       - name: Create Pretix superuser and API token
         run: |
-          TOKEN=$(docker exec pretix_app pretix createsuperuser --noinput \
-            --username admin --email admin@example.com 2>/dev/null || true && \
-            docker exec pretix_app pretix shell -c \
+          docker exec -e DJANGO_SUPERUSER_PASSWORD=admin pretix_app pretix createsuperuser --noinput \
+            --username admin --email admin@example.com
+          TOKEN=$(docker exec pretix_app pretix shell -c \
             "from pretix.base.models import TeamAPIToken; from django.contrib.auth import get_user_model; \
             User = get_user_model(); u = User.objects.get(email='admin@example.com'); \
             from pretix.base.models import Team, Organizer; \
