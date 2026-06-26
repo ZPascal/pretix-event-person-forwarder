@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Bootstrap test data in a local Pretix instance for integration tests.
 
-Creates:
-  - Organizer 'dpsg-speyer' with event 'prisma-2025' and question id=256
+Organizers are pre-created via Django shell in CI. This script creates:
+  - Event 'prisma-2025' under 'dpsg-speyer' with a question and test order
     (used by existing tests/integrationtest/test_events.py, test_orders.py, test_questions.py)
-  - Organizer 'source-org' with event 'source-event' and a test order
-  - Organizer 'dest-org' with event 'dest-event'
+  - Event 'source-event' under 'source-org' with a test order
+  - Event 'dest-event' under 'dest-org'
 """
 import json
 import sys
@@ -36,10 +36,6 @@ def get(path):
         print(f"GET {path} failed {resp.status_code}: {resp.text}", file=sys.stderr)
         sys.exit(1)
     return resp.json()
-
-
-def create_organizer(slug, name):
-    return post("/api/v1/organizers/", {"name": name, "slug": slug})
 
 
 def create_event(organizer, slug, name):
@@ -93,9 +89,6 @@ def create_order(organizer, event, item_id, question_id=None):
 
 
 # --- dpsg-speyer / prisma-2025 (existing tests) ---
-print("Creating dpsg-speyer organizer...")
-create_organizer("dpsg-speyer", "DPSG Speyer")
-
 print("Creating prisma-2025 event...")
 create_event("dpsg-speyer", "prisma-2025", "Prisma 2025")
 
@@ -110,9 +103,6 @@ print("Creating test order for dpsg-speyer/prisma-2025...")
 create_order("dpsg-speyer", "prisma-2025", item["id"], question["id"])
 
 # --- source-org / source-event (forwarder tests) ---
-print("Creating source-org organizer...")
-create_organizer("source-org", "Source Org")
-
 print("Creating source-event event...")
 create_event("source-org", "source-event", "Source Event")
 
@@ -123,9 +113,6 @@ print("Creating test order for source-org/source-event...")
 create_order("source-org", "source-event", src_item["id"])
 
 # --- dest-org / dest-event (forwarder tests) ---
-print("Creating dest-org organizer...")
-create_organizer("dest-org", "Dest Org")
-
 print("Creating dest-event event...")
 create_event("dest-org", "dest-event", "Dest Event")
 
@@ -133,3 +120,4 @@ print("Creating item for dest-event (required for order creation)...")
 create_item("dest-org", "dest-event", "Ticket")
 
 print("Bootstrap complete.")
+
