@@ -12,13 +12,46 @@ jobs:
 
   pretix-event-person-forwarder-test:
     runs-on: ubuntu-latest
-    permissions: read-all
     strategy:
       matrix:
         python-version: [ '3.10' ]
 
     steps:
       - uses: actions/checkout@v7
+
+      - name: Check out pretix-docker-compose
+        uses: actions/checkout@v7
+        with:
+          repository: ZPascal/pretix-docker-compose
+          path: pretix-docker-compose
+
+      - name: Start Pretix via Docker Compose
+        working-directory: pretix-docker-compose
+        run: docker compose up -d
+
+      - name: Wait for Pretix to be healthy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost/api/v1/; then
+              echo "Pretix is up"
+              break
+            fi
+            echo "Waiting for Pretix... ($i/30)"
+            sleep 10
+          done
+
+      - name: Create Pretix superuser and API token
+        run: |
+          TOKEN=$(docker exec pretix_app pretix createsuperuser --noinput \
+            --username admin --email admin@example.com 2>/dev/null || true && \
+            docker exec pretix_app pretix shell -c \
+            "from pretix.base.models import TeamAPIToken; from django.contrib.auth import get_user_model; \
+            User = get_user_model(); u = User.objects.get(email='admin@example.com'); \
+            from pretix.base.models import Team, Organizer; \
+            o = Organizer.objects.create(name='Admin', slug='admin'); \
+            t = Team.objects.create(organizer=o, name='Admin', all_events=True, can_view_orders=True, can_change_orders=True, can_change_event_settings=True); \
+            t.members.add(u); tok = TeamAPIToken.objects.create(team=t, name='ci'); print(tok.secret)")
+          echo "PRETIX_TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -30,11 +63,22 @@ jobs:
       - name: Install the requirements
         run: pip install -r requirements.txt
 
+      - name: Bootstrap test data
+        run: python3 tests/integrationtest/bootstrap.py "$PRETIX_TOKEN"
+        env:
+          PRETIX_TOKEN: ${{ env.PRETIX_TOKEN }}
+
       - name: Execute the integrationtests (http1.1)
         run: python3 -m unittest discover tests/integrationtest
+        env:
+          PRETIX_HOST: http://localhost
+          PRETIX_TOKEN: ${{ env.PRETIX_TOKEN }}
 
       - name: Wait 20 seconds
         run: sleep 20
 
       - name: Execute the integrationtests (http2)
         run: python3 -m unittest discover tests/integrationtest
+        env:
+          PRETIX_HOST: http://localhost
+          PRETIX_TOKEN: ${{ env.PRETIX_TOKEN }}

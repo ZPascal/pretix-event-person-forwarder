@@ -1,0 +1,214 @@
+import json
+from unittest import TestCase
+from unittest.mock import patch, call
+
+from pretix_event_person_forwarder.model import APIModel
+from pretix_event_person_forwarder.forwarder import Forwarder
+
+
+SOURCE_MODEL = APIModel(host="https://source.pretix.eu/", token="src-token")
+DEST_MODEL = APIModel(host="https://dest.pretix.eu/", token="dst-token")
+
+RULES = {
+    "fields": {
+        "attendee_name": "attendee_name",
+        "attendee_email": "attendee_email",
+        "questions": [
+            {"source_id": 256, "dest_id": 312},
+        ],
+    }
+}
+
+SOURCE_ORDERS = [
+    {
+        "code": "AAAAA",
+        "positions": [
+            {
+                "id": 1,
+                "attendee_name": "Jane Doe",
+                "attendee_email": "jane@example.com",
+                "answers": [{"question": 256, "answer": "Berlin"}],
+            }
+        ],
+    }
+]
+
+DEST_QUESTIONS = [{"id": 312, "question": {"en": "City"}}]
+DEST_ITEMS = {"results": [{"id": 99, "name": {"en": "Ticket"}}]}
+DEST_ORDERS_EMPTY = []
+DEST_ORDERS_WITH_JANE = [
+    {
+        "code": "BBBBB",
+        "positions": [
+            {
+                "id": 10,
+                "attendee_name": "Jane Doe",
+                "attendee_email": "jane@example.com",
+                "answers": [],
+            }
+        ],
+    }
+]
+
+
+class TestForwarderValidation(TestCase):
+    def test_invalid_mode_raises_value_error(self):
+        with self.assertRaises(ValueError):
+            Forwarder(SOURCE_MODEL, DEST_MODEL, RULES, "invalid")
+
+    def test_unknown_dest_question_id_raises_value_error(self):
+        bad_rules = {
+            "fields": {
+                "questions": [{"source_id": 256, "dest_id": 999}]
+            }
+        }
+        forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, bad_rules, "skip")
+        with patch(
+            "pretix_event_person_forwarder.forwarder.Questions.get_all_event_questions",
+            return_value=[{"id": 312}],
+        ):
+            with self.assertRaises(ValueError):
+                forwarder.forward_event_persons(
+                    "src-org", "src-event", "dst-org", "dst-event"
+                )
+
+    def test_rule_validation_runs_before_writes(self):
+        bad_rules = {
+            "fields": {
+                "questions": [{"source_id": 256, "dest_id": 999}]
+            }
+        }
+        forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, bad_rules, "skip")
+        with patch(
+            "pretix_event_person_forwarder.forwarder.Questions.get_all_event_questions",
+            return_value=[{"id": 312}],
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Api.call_the_api"
+        ) as mock_api:
+            with self.assertRaises(ValueError):
+                forwarder.forward_event_persons(
+                    "src-org", "src-event", "dst-org", "dst-event"
+                )
+            mock_api.assert_not_called()
+
+
+class TestForwarderCreateMode(TestCase):
+    def setUp(self):
+        self.forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, RULES, "skip")
+
+    def test_new_attendee_is_posted(self):
+        with patch(
+            "pretix_event_person_forwarder.forwarder.Orders.get_event_orders",
+            side_effect=[SOURCE_ORDERS, DEST_ORDERS_EMPTY],
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Questions.get_all_event_questions",
+            return_value=DEST_QUESTIONS,
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Api.call_the_api",
+            side_effect=[DEST_ITEMS, {"code": "CCCCC"}],
+        ) as mock_api:
+            self.forwarder.forward_event_persons(
+                "src-org", "src-event", "dst-org", "dst-event"
+            )
+            self.assertEqual(mock_api.call_count, 2)
+            post_call = mock_api.call_args_list[1]
+            posted = json.loads(post_call[1]["json_complete"])
+            self.assertEqual(posted["positions"][0]["item"], 99)
+            self.assertEqual(posted["positions"][0]["attendee_name"], "Jane Doe")
+            self.assertEqual(posted["positions"][0]["attendee_email"], "jane@example.com")
+            self.assertEqual(posted["positions"][0]["answers"][0]["question"], 312)
+            self.assertEqual(posted["positions"][0]["answers"][0]["answer"], "Berlin")
+
+
+class TestForwarderSkipMode(TestCase):
+    def setUp(self):
+        self.forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, RULES, "skip")
+
+    def test_existing_attendee_is_skipped(self):
+        with patch(
+            "pretix_event_person_forwarder.forwarder.Orders.get_event_orders",
+            side_effect=[SOURCE_ORDERS, DEST_ORDERS_WITH_JANE],
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Questions.get_all_event_questions",
+            return_value=DEST_QUESTIONS,
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Api.call_the_api",
+            return_value=DEST_ITEMS,
+        ) as mock_api:
+            self.forwarder.forward_event_persons(
+                "src-org", "src-event", "dst-org", "dst-event"
+            )
+            # Only the items GET was called — no POST or PATCH
+            self.assertEqual(mock_api.call_count, 1)
+            self.assertNotIn("json_complete", mock_api.call_args[1])
+
+
+class TestForwarderUpdateMode(TestCase):
+    def setUp(self):
+        self.forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, RULES, "update")
+
+    def test_existing_attendee_is_patched(self):
+        with patch(
+            "pretix_event_person_forwarder.forwarder.Orders.get_event_orders",
+            side_effect=[SOURCE_ORDERS, DEST_ORDERS_WITH_JANE],
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Questions.get_all_event_questions",
+            return_value=DEST_QUESTIONS,
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Api.call_the_api",
+            side_effect=[DEST_ITEMS, {}],
+        ) as mock_api:
+            self.forwarder.forward_event_persons(
+                "src-org", "src-event", "dst-org", "dst-event"
+            )
+            self.assertEqual(mock_api.call_count, 2)
+            patch_call = mock_api.call_args_list[1]
+            path_arg = patch_call[0][0]
+            self.assertIn("BBBBB", path_arg)
+            self.assertIn("10", path_arg)
+            patch_payload = json.loads(patch_call[1]["json_complete"])
+            self.assertEqual(patch_payload["attendee_name"], "Jane Doe")
+            self.assertEqual(patch_payload["attendee_email"], "jane@example.com")
+            self.assertEqual(patch_payload["answers"][0]["question"], 312)
+            self.assertEqual(patch_payload["answers"][0]["answer"], "Berlin")
+
+    def test_no_email_attendee_is_always_posted(self):
+        source_orders_no_email = [
+            {
+                "code": "CCCCC",
+                "positions": [
+                    {
+                        "id": 2,
+                        "attendee_name": "No Email",
+                        "attendee_email": None,
+                        "answers": [],
+                    }
+                ],
+            }
+        ]
+        rules_no_questions = {
+            "fields": {
+                "attendee_name": "attendee_name",
+                "attendee_email": "attendee_email",
+                "questions": [],
+            }
+        }
+        forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, rules_no_questions, "update")
+        with patch(
+            "pretix_event_person_forwarder.forwarder.Orders.get_event_orders",
+            side_effect=[source_orders_no_email, DEST_ORDERS_WITH_JANE],
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Questions.get_all_event_questions",
+            return_value=DEST_QUESTIONS,
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Api.call_the_api",
+            side_effect=[DEST_ITEMS, {"code": "DDDDD"}],
+        ) as mock_api:
+            forwarder.forward_event_persons(
+                "src-org", "src-event", "dst-org", "dst-event"
+            )
+            self.assertEqual(mock_api.call_count, 2)
+            post_call = mock_api.call_args_list[1]
+            path_arg = post_call[0][0]
+            self.assertNotIn("BBBBB", path_arg)
+            self.assertNotIn("positions", path_arg)
