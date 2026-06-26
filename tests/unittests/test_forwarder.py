@@ -1,6 +1,6 @@
 import json
 from unittest import TestCase
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, call
 
 from pretix_event_person_forwarder.model import APIModel
 from pretix_event_person_forwarder.forwarder import Forwarder
@@ -34,6 +34,7 @@ SOURCE_ORDERS = [
 ]
 
 DEST_QUESTIONS = [{"id": 312, "question": {"en": "City"}}]
+DEST_ITEMS = {"results": [{"id": 99, "name": {"en": "Ticket"}}]}
 DEST_ORDERS_EMPTY = []
 DEST_ORDERS_WITH_JANE = [
     {
@@ -88,7 +89,6 @@ class TestForwarderValidation(TestCase):
                 forwarder.forward_event_persons(
                     "src-org", "src-event", "dst-org", "dst-event"
                 )
-            # No POST or PATCH should have been called
             mock_api.assert_not_called()
 
 
@@ -105,14 +105,15 @@ class TestForwarderCreateMode(TestCase):
             return_value=DEST_QUESTIONS,
         ), patch(
             "pretix_event_person_forwarder.forwarder.Api.call_the_api",
-            return_value={"code": "CCCCC"},
+            side_effect=[DEST_ITEMS, {"code": "CCCCC"}],
         ) as mock_api:
             self.forwarder.forward_event_persons(
                 "src-org", "src-event", "dst-org", "dst-event"
             )
-            mock_api.assert_called_once()
-            call_kwargs = mock_api.call_args
-            posted = json.loads(call_kwargs[1]["json_complete"] if "json_complete" in call_kwargs[1] else call_kwargs[0][2])
+            self.assertEqual(mock_api.call_count, 2)
+            post_call = mock_api.call_args_list[1]
+            posted = json.loads(post_call[1]["json_complete"])
+            self.assertEqual(posted["positions"][0]["item"], 99)
             self.assertEqual(posted["positions"][0]["attendee_name"], "Jane Doe")
             self.assertEqual(posted["positions"][0]["attendee_email"], "jane@example.com")
             self.assertEqual(posted["positions"][0]["answers"][0]["question"], 312)
@@ -131,12 +132,15 @@ class TestForwarderSkipMode(TestCase):
             "pretix_event_person_forwarder.forwarder.Questions.get_all_event_questions",
             return_value=DEST_QUESTIONS,
         ), patch(
-            "pretix_event_person_forwarder.forwarder.Api.call_the_api"
+            "pretix_event_person_forwarder.forwarder.Api.call_the_api",
+            return_value=DEST_ITEMS,
         ) as mock_api:
             self.forwarder.forward_event_persons(
                 "src-org", "src-event", "dst-org", "dst-event"
             )
-            mock_api.assert_not_called()
+            # Only the items GET was called — no POST or PATCH
+            self.assertEqual(mock_api.call_count, 1)
+            self.assertNotIn("json_complete", mock_api.call_args[1])
 
 
 class TestForwarderUpdateMode(TestCase):
@@ -152,18 +156,17 @@ class TestForwarderUpdateMode(TestCase):
             return_value=DEST_QUESTIONS,
         ), patch(
             "pretix_event_person_forwarder.forwarder.Api.call_the_api",
-            return_value={},
+            side_effect=[DEST_ITEMS, {}],
         ) as mock_api:
             self.forwarder.forward_event_persons(
                 "src-org", "src-event", "dst-org", "dst-event"
             )
-            mock_api.assert_called_once()
-            call_args = mock_api.call_args
-            # PATCH path should include order code and position id
-            path_arg = call_args[0][0] if call_args[0] else call_args[1].get("api_call")
+            self.assertEqual(mock_api.call_count, 2)
+            patch_call = mock_api.call_args_list[1]
+            path_arg = patch_call[0][0]
             self.assertIn("BBBBB", path_arg)
             self.assertIn("10", path_arg)
-            patch_payload = json.loads(call_args[1]["json_complete"] if "json_complete" in call_args[1] else call_args[0][2])
+            patch_payload = json.loads(patch_call[1]["json_complete"])
             self.assertEqual(patch_payload["attendee_name"], "Jane Doe")
             self.assertEqual(patch_payload["attendee_email"], "jane@example.com")
             self.assertEqual(patch_payload["answers"][0]["question"], 312)
@@ -183,6 +186,14 @@ class TestForwarderUpdateMode(TestCase):
                 ],
             }
         ]
+        rules_no_questions = {
+            "fields": {
+                "attendee_name": "attendee_name",
+                "attendee_email": "attendee_email",
+                "questions": [],
+            }
+        }
+        forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, rules_no_questions, "update")
         with patch(
             "pretix_event_person_forwarder.forwarder.Orders.get_event_orders",
             side_effect=[source_orders_no_email, DEST_ORDERS_WITH_JANE],
@@ -191,15 +202,13 @@ class TestForwarderUpdateMode(TestCase):
             return_value=DEST_QUESTIONS,
         ), patch(
             "pretix_event_person_forwarder.forwarder.Api.call_the_api",
-            return_value={"code": "DDDDD"},
+            side_effect=[DEST_ITEMS, {"code": "DDDDD"}],
         ) as mock_api:
-            rules_no_questions = {"fields": {"attendee_name": "attendee_name", "attendee_email": "attendee_email", "questions": []}}
-            forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, rules_no_questions, "update")
             forwarder.forward_event_persons(
                 "src-org", "src-event", "dst-org", "dst-event"
             )
-            mock_api.assert_called_once()
-            call_args = mock_api.call_args
-            path_arg = call_args[0][0] if call_args[0] else call_args[1].get("api_call")
-            # Should be a POST (no order code/position in path)
+            self.assertEqual(mock_api.call_count, 2)
+            post_call = mock_api.call_args_list[1]
+            path_arg = post_call[0][0]
             self.assertNotIn("BBBBB", path_arg)
+            self.assertNotIn("positions", path_arg)

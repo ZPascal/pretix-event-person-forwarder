@@ -74,6 +74,15 @@ class Forwarder:
                     f"Destination question ID {mapping['dest_id']} not found in event '{dest_event}'."
                 )
 
+        items = Api(self.dest_api_model).call_the_api(
+            f"{APIEndpoints.ORGANIZERS.value}/{dest_organizer}/{APIEndpoints.EVENTS.value}"
+            f"/{dest_event}/{APIEndpoints.ITEMS.value}",
+        )
+        dest_item_id = items.get("results", [{}])[0].get("id") if items.get("results") else None
+        if dest_item_id is None:
+            logging.error(f"No items found in destination event '{dest_event}'. Cannot create orders.")
+            raise ValueError(f"No items found in destination event '{dest_event}'.")
+
         source_orders = Orders(self.source_api_model).get_event_orders(
             source_organizer, source_event
         )
@@ -98,7 +107,7 @@ class Forwarder:
         for order in source_orders:
             for position in order.get("positions", []):
                 self._process_position(
-                    position, dest_organizer, dest_event, dest_by_email, question_map
+                    position, dest_organizer, dest_event, dest_by_email, question_map, dest_item_id
                 )
 
     def _process_position(
@@ -108,6 +117,7 @@ class Forwarder:
         dest_event: str,
         dest_by_email: dict,
         question_map: dict,
+        dest_item_id: int,
     ) -> None:
         email = position.get("attendee_email")
         mapped_answers = [
@@ -138,6 +148,7 @@ class Forwarder:
             payload = {
                 "positions": [
                     {
+                        "item": dest_item_id,
                         "attendee_name": position.get("attendee_name"),
                         "attendee_email": email,
                         "answers": mapped_answers,

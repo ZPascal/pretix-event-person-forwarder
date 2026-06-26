@@ -14,6 +14,7 @@ class APIEndpoints(Enum):
     version_1: str = "v1"
     ORGANIZERS: str = f"/{api_prefix}/{version_1}/organizers"
     EVENTS: str = "events"
+    ITEMS: str = "items"
     ORDERS: str = "orders"
     QUESTIONS: str = "questions"
 
