@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pretix-event-person-forwarder"
+version = "0.1.0"
+description = "A Pretix event person forwarder functionality"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Pascal Zimmermann", email = "info@theiotstudio.com" }]
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = ["httpx"]
+
+[project.optional-dependencies]
+http2 = ["httpx[http2]"]
+dev = ["pytest", "pytest-httpx", "pytest-cov", "coverage-badge", "ruff"]
+
+[project.urls]
+Source = "https://github.com/ZPascal/pretix-event-person-forwarder"
+"Bug Tracker" = "https://github.com/ZPascal/pretix-event-person-forwarder/issues"
+Documentation = "https://zpascal.github.io/pretix-event-person-forwarder/"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "C90", "B"]
+ignore = ["E203", "E266", "E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unittests"]
+
+[tool.coverage.run]
+branch = true
+omit = ["*/setup.py"]
+source = ["."]
+
+[tool.coverage.report]
+omit = ["*/setup.py"]
+fail_under = 80
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

@@ -245,7 +245,7 @@ class Api:
         if Api._check_if_valid_json(response.text):
             if (
                 len(json.loads(response.text)) != 0
-                and type(json.loads(response.text)) == dict
+                and isinstance(json.loads(response.text), dict)
             ):
                 if (
                     "message" in json.loads(response.text).keys()
