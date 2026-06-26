@@ -50,7 +50,7 @@ jobs:
             from pretix.base.models import Team, Organizer; \
             o = Organizer.objects.create(name='Admin', slug='admin'); \
             t = Team.objects.create(organizer=o, name='Admin', all_events=True, all_event_permissions=True, all_organizer_permissions=True); \
-            t.members.add(u); tok = TeamAPIToken.objects.create(team=t, name='ci'); print(tok.secret)")
+            t.members.add(u); tok = TeamAPIToken.objects.create(team=t, name='ci'); print(tok.token)")
           echo "PRETIX_TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Set up Python
