@@ -32,9 +32,33 @@ jobs:
 
       - name: Execute the integrationtests (http1.1)
         run: python3 -m unittest discover tests/integrationtest
+        env:
+          PRETIX_HOST: ${{ secrets.PRETIX_HOST }}
+          PRETIX_TOKEN: ${{ secrets.PRETIX_TOKEN }}
+          PRETIX_SOURCE_HOST: ${{ secrets.PRETIX_SOURCE_HOST }}
+          PRETIX_SOURCE_TOKEN: ${{ secrets.PRETIX_SOURCE_TOKEN }}
+          PRETIX_DEST_HOST: ${{ secrets.PRETIX_DEST_HOST }}
+          PRETIX_DEST_TOKEN: ${{ secrets.PRETIX_DEST_TOKEN }}
+          PRETIX_SOURCE_ORGANIZER: ${{ secrets.PRETIX_SOURCE_ORGANIZER }}
+          PRETIX_SOURCE_EVENT: ${{ secrets.PRETIX_SOURCE_EVENT }}
+          PRETIX_DEST_ORGANIZER: ${{ secrets.PRETIX_DEST_ORGANIZER }}
+          PRETIX_DEST_EVENT: ${{ secrets.PRETIX_DEST_EVENT }}
+          PRETIX_FORWARDER_RULES: ${{ secrets.PRETIX_FORWARDER_RULES }}
 
       - name: Wait 20 seconds
         run: sleep 20
 
       - name: Execute the integrationtests (http2)
         run: python3 -m unittest discover tests/integrationtest
+        env:
+          PRETIX_HOST: ${{ secrets.PRETIX_HOST }}
+          PRETIX_TOKEN: ${{ secrets.PRETIX_TOKEN }}
+          PRETIX_SOURCE_HOST: ${{ secrets.PRETIX_SOURCE_HOST }}
+          PRETIX_SOURCE_TOKEN: ${{ secrets.PRETIX_SOURCE_TOKEN }}
+          PRETIX_DEST_HOST: ${{ secrets.PRETIX_DEST_HOST }}
+          PRETIX_DEST_TOKEN: ${{ secrets.PRETIX_DEST_TOKEN }}
+          PRETIX_SOURCE_ORGANIZER: ${{ secrets.PRETIX_SOURCE_ORGANIZER }}
+          PRETIX_SOURCE_EVENT: ${{ secrets.PRETIX_SOURCE_EVENT }}
+          PRETIX_DEST_ORGANIZER: ${{ secrets.PRETIX_DEST_ORGANIZER }}
+          PRETIX_DEST_EVENT: ${{ secrets.PRETIX_DEST_EVENT }}
+          PRETIX_FORWARDER_RULES: ${{ secrets.PRETIX_FORWARDER_RULES }}
