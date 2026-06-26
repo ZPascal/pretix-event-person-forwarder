@@ -111,9 +111,9 @@ class Forwarder:
     ) -> None:
         email = position.get("attendee_email")
         mapped_answers = [
-            {"question": question_map[a["question"]], "answer": a["answer"]}
+            {"question": question_map[a.get("question")], "answer": a.get("answer")}
             for a in position.get("answers", [])
-            if a["question"] in question_map
+            if a.get("question") in question_map
         ]
 
         if email and email in dest_by_email:
