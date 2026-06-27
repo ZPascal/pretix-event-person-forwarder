@@ -14,8 +14,8 @@ u = User.objects.get(email='admin@example.com')
 def make_event(org, slug, name):
     return Event.objects.create(
         organizer=org, slug=slug,
-        name=name, locale='en', default_locale='en',
-        plugins='', date_from=datetime.datetime(2025, 1, 1, tzinfo=pytz.UTC),
+        name=name, plugins='',
+        date_from=datetime.datetime(2025, 1, 1, tzinfo=pytz.UTC),
         currency='EUR', live=True,
     )
 
