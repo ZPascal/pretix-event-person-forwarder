@@ -12,13 +12,40 @@ jobs:
 
   pretix-event-person-forwarder-test:
     runs-on: ubuntu-latest
-    permissions: read-all
     strategy:
       matrix:
         python-version: [ '3.10' ]
 
     steps:
       - uses: actions/checkout@v7
+
+      - name: Check out pretix-docker-compose
+        uses: actions/checkout@v7
+        with:
+          repository: ZPascal/pretix-docker-compose
+          path: pretix-docker-compose
+
+      - name: Start Pretix via Docker Compose
+        working-directory: pretix-docker-compose
+        run: docker compose up -d
+
+      - name: Wait for Pretix to be healthy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost/api/v1/; then
+              echo "Pretix is up"
+              break
+            fi
+            echo "Waiting for Pretix... ($i/30)"
+            sleep 10
+          done
+
+      - name: Create Pretix superuser, test data and API token
+        run: |
+          docker exec -e DJANGO_SUPERUSER_PASSWORD=admin pretix_app pretix createsuperuser --noinput \
+            --email admin@example.com >&2
+          TOKEN=$(docker exec -i pretix_app pretix shell < tests/integrationtest/setup_testdata.py | tail -1)
+          echo "PRETIX_TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -32,9 +59,15 @@ jobs:
 
       - name: Execute the integrationtests (http1.1)
         run: python3 -m unittest discover tests/integrationtest
+        env:
+          PRETIX_HOST: http://localhost
+          PRETIX_TOKEN: ${{ env.PRETIX_TOKEN }}
 
       - name: Wait 20 seconds
         run: sleep 20
 
       - name: Execute the integrationtests (http2)
         run: python3 -m unittest discover tests/integrationtest
+        env:
+          PRETIX_HOST: http://localhost
+          PRETIX_TOKEN: ${{ env.PRETIX_TOKEN }}
