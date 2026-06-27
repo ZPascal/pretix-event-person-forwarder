@@ -1,6 +1,6 @@
 from pretix.base.models import (
     Event, Item, Order, OrderPosition, Question, QuestionAnswer,
-    Team, TeamAPIToken, Organizer,
+    Team, TeamAPIToken, Organizer, SalesChannel,
 )
 from django.contrib.auth import get_user_model
 from django_scopes import scope
@@ -34,9 +34,11 @@ def make_question(event, org, text):
 
 def make_order(event, org, item, question=None, answer=None):
     with scope(organizer=org):
+        sc = SalesChannel.objects.get(organizer=org, identifier='web')
         order = Order.objects.create(
             event=event, code='TEST1', email='test@example.com',
             status=Order.STATUS_PAID, locale='en',
+            sales_channel=sc,
             datetime=datetime.datetime.now(pytz.UTC),
             expires=datetime.datetime(2030, 1, 1, tzinfo=pytz.UTC),
             total=Decimal('0.00'),
