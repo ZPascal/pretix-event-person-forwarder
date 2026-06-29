@@ -12,13 +12,77 @@ jobs:
 
   pretix-event-person-forwarder-test:
     runs-on: ubuntu-latest
-    permissions: read-all
     strategy:
       matrix:
         python-version: [ '3.10' ]
 
     steps:
       - uses: actions/checkout@v7
+
+      - name: Check out pretix-docker-compose
+        uses: actions/checkout@v7
+        with:
+          repository: ZPascal/pretix-docker-compose
+          path: pretix-docker-compose
+
+      - name: Patch nginx config to HTTP-only (no SSL)
+        working-directory: pretix-docker-compose
+        run: |
+          cat > docker/pretix/nginx/nginx.conf << 'EOF'
+          user pretixuser www-data;
+          worker_processes auto;
+          pid /var/run/nginx.pid;
+          daemon off;
+
+          events {
+              worker_connections 1024;
+          }
+
+          http {
+              include /etc/nginx/mime.types;
+              default_type application/octet-stream;
+              access_log /var/log/nginx/access.log;
+              error_log /var/log/nginx/error.log;
+
+              server {
+                  listen 80 default_server;
+                  server_name _;
+
+                  location / {
+                      proxy_pass http://unix:/tmp/pretix.sock:;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header Host $http_host;
+                  }
+              }
+          }
+          EOF
+
+      - name: Start Pretix via Docker Compose
+        working-directory: pretix-docker-compose
+        run: docker compose up -d
+
+      - name: Wait for Pretix to be healthy
+        run: |
+          for i in $(seq 1 60); do
+            STATUS=$(docker exec pretix_app curl -s -o /dev/null -w "%{http_code}" http://localhost/api/v1/ 2>/dev/null || echo "000")
+            if [ "$STATUS" = "401" ] || [ "$STATUS" = "200" ]; then
+              echo "Pretix is up (HTTP $STATUS)"
+              break
+            fi
+            echo "Waiting for Pretix... ($i/60, HTTP $STATUS)"
+            if [ "$i" = "30" ]; then
+              echo "--- docker logs (last 20 lines) ---"
+              docker logs pretix_app --tail 20
+            fi
+            sleep 10
+          done
+
+      - name: Create Pretix superuser, test data and API token
+        run: |
+          docker exec -e DJANGO_SUPERUSER_PASSWORD=admin pretix_app pretix createsuperuser --noinput \
+            --email admin@example.com >&2
+          TOKEN=$(docker exec -i pretix_app pretix shell < tests/integrationtest/setup_testdata.py | tail -1)
+          echo "PRETIX_TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -32,9 +96,15 @@ jobs:
 
       - name: Execute the integrationtests (http1.1)
         run: python3 -m unittest discover tests/integrationtest
+        env:
+          PRETIX_HOST: http://localhost
+          PRETIX_TOKEN: ${{ env.PRETIX_TOKEN }}
 
       - name: Wait 20 seconds
         run: sleep 20
 
       - name: Execute the integrationtests (http2)
         run: python3 -m unittest discover tests/integrationtest
+        env:
+          PRETIX_HOST: http://localhost
+          PRETIX_TOKEN: ${{ env.PRETIX_TOKEN }}
