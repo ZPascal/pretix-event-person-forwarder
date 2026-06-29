@@ -194,10 +194,82 @@ class TestCallTheApiSync(TestCase):
             )
         self.assertIn("status", result)
 
-    def test_http2_path(self):
+    def test_invalid_method_raises(self):
+        client = self._mock_client({})
+        with patch.object(Api, "create_the_http_api_client", return_value=client):
+            with self.assertRaises(Exception):
+                self._api().call_the_api("api/v1/test/", method=MagicMock(value="INVALID"))
+
+    def test_http2_get(self):
         response = _fake_response({"results": []})
         async_client = AsyncMock()
         async_client.request = AsyncMock(return_value=response)
         with patch.object(Api, "create_the_http_api_client", return_value=async_client):
             result = Api(MODEL_HTTP2).call_the_api("api/v1/test/")
         self.assertEqual(result, {"results": []})
+
+    def test_http2_post(self):
+        response = _fake_response({"code": "ABC"})
+        async_client = AsyncMock()
+        async_client.request = AsyncMock(return_value=response)
+        with patch.object(Api, "create_the_http_api_client", return_value=async_client):
+            result = Api(MODEL_HTTP2).call_the_api(
+                "api/v1/test/", method=RequestsMethods.POST, json_complete='{"x":1}'
+            )
+        self.assertEqual(result, {"code": "ABC"})
+
+    def test_http2_post_without_json_raises(self):
+        async_client = AsyncMock()
+        with patch.object(Api, "create_the_http_api_client", return_value=async_client):
+            with self.assertRaises(Exception):
+                Api(MODEL_HTTP2).call_the_api("api/v1/test/", method=RequestsMethods.POST)
+
+    def test_http2_put(self):
+        response = _fake_response({"id": 1})
+        async_client = AsyncMock()
+        async_client.request = AsyncMock(return_value=response)
+        with patch.object(Api, "create_the_http_api_client", return_value=async_client):
+            result = Api(MODEL_HTTP2).call_the_api(
+                "api/v1/test/1/", method=RequestsMethods.PUT, json_complete='{"x":1}'
+            )
+        self.assertEqual(result, {"id": 1})
+
+    def test_http2_put_without_json_raises(self):
+        async_client = AsyncMock()
+        with patch.object(Api, "create_the_http_api_client", return_value=async_client):
+            with self.assertRaises(Exception):
+                Api(MODEL_HTTP2).call_the_api("api/v1/test/1/", method=RequestsMethods.PUT)
+
+    def test_http2_patch(self):
+        response = _fake_response({"id": 1})
+        async_client = AsyncMock()
+        async_client.request = AsyncMock(return_value=response)
+        with patch.object(Api, "create_the_http_api_client", return_value=async_client):
+            result = Api(MODEL_HTTP2).call_the_api(
+                "api/v1/test/1/", method=RequestsMethods.PATCH, json_complete='{"x":1}'
+            )
+        self.assertEqual(result, {"id": 1})
+
+    def test_http2_patch_without_json_raises(self):
+        async_client = AsyncMock()
+        with patch.object(Api, "create_the_http_api_client", return_value=async_client):
+            with self.assertRaises(Exception):
+                Api(MODEL_HTTP2).call_the_api("api/v1/test/1/", method=RequestsMethods.PATCH)
+
+    def test_http2_delete(self):
+        response = _fake_response({})
+        async_client = AsyncMock()
+        async_client.request = AsyncMock(return_value=response)
+        with patch.object(Api, "create_the_http_api_client", return_value=async_client):
+            result = Api(MODEL_HTTP2).call_the_api(
+                "api/v1/test/1/", method=RequestsMethods.DELETE
+            )
+        self.assertEqual(result, {})
+
+    def test_http2_invalid_method_raises(self):
+        async_client = AsyncMock()
+        with patch.object(Api, "create_the_http_api_client", return_value=async_client):
+            with self.assertRaises(Exception):
+                Api(MODEL_HTTP2).call_the_api(
+                    "api/v1/test/", method=MagicMock(value="INVALID")
+                )

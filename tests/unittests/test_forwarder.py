@@ -172,7 +172,55 @@ class TestForwarderUpdateMode(TestCase):
             self.assertEqual(patch_payload["answers"][0]["question"], 312)
             self.assertEqual(patch_payload["answers"][0]["answer"], "Berlin")
 
-    def test_no_email_attendee_is_always_posted(self):
+    def test_no_items_in_dest_raises_value_error(self):
+        with patch(
+            "pretix_event_person_forwarder.forwarder.Questions.get_all_event_questions",
+            return_value=DEST_QUESTIONS,
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Api.call_the_api",
+            return_value={"results": []},
+        ):
+            with self.assertRaises(ValueError):
+                self.forwarder.forward_event_persons(
+                    "src-org", "src-event", "dst-org", "dst-event"
+                )
+
+
+class TestForwarderDuplicateEmail(TestCase):
+    def setUp(self):
+        self.forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, RULES, "update")
+
+    def test_duplicate_email_in_dest_logs_warning(self):
+        dest_orders_duplicate = [
+            {
+                "code": "BBBBB",
+                "positions": [
+                    {"id": 10, "attendee_name": "Jane Doe", "attendee_email": "jane@example.com", "answers": []},
+                    {"id": 11, "attendee_name": "No Email", "attendee_email": None, "answers": []},
+                ],
+            },
+            {
+                "code": "CCCCC",
+                "positions": [
+                    {"id": 20, "attendee_name": "Jane Doe 2", "attendee_email": "jane@example.com", "answers": []},
+                ],
+            },
+        ]
+        with patch(
+            "pretix_event_person_forwarder.forwarder.Orders.get_event_orders",
+            side_effect=[SOURCE_ORDERS, dest_orders_duplicate],
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Questions.get_all_event_questions",
+            return_value=DEST_QUESTIONS,
+        ), patch(
+            "pretix_event_person_forwarder.forwarder.Api.call_the_api",
+            side_effect=[DEST_ITEMS, {}],
+        ):
+            import logging
+            with self.assertLogs(level=logging.WARNING):
+                self.forwarder.forward_event_persons(
+                    "src-org", "src-event", "dst-org", "dst-event"
+                )
         source_orders_no_email = [
             {
                 "code": "CCCCC",
