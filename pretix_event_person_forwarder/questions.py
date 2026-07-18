@@ -3,6 +3,7 @@ import logging
 from .model import APIModel, APIEndpoints
 from .api import Api
 
+
 class Questions:
     """The class includes all necessary methods to access the Pretix questions API endpoints
 
@@ -16,7 +17,8 @@ class Questions:
     def __init__(self, pretix_api_model: APIModel):
         self.pretix_api_model = pretix_api_model
 
-    def get_event_question(self,
+    def get_event_question(
+            self,
             organizer: str,
             event_name: str,
             question_id: int,
@@ -77,7 +79,7 @@ class Questions:
             )
 
             if (api_call.get("counts") is not None and api_call.get("counts") >= 0 and
-                    api_call.get("results")[0].get("id") is None):
+                    api_call.get("results") and api_call.get("results")[0].get("id") is None):
                 logging.error(f"Check the error: {api_call}.")
                 raise Exception
             else:

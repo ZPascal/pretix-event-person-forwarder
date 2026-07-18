@@ -3,6 +3,7 @@ import logging
 from .model import APIModel, APIEndpoints
 from .api import Api
 
+
 class Orders:
     """The class includes all necessary methods to access the Pretix events API endpoints
 
@@ -41,7 +42,7 @@ class Orders:
             )
 
             if (api_call.get("counts") is not None and api_call.get("counts") >= 0 and
-                    api_call.get("results")[0].get("event") is None):
+                    len(api_call.get("results", [])) > 0 and api_call.get("results")[0].get("event") is None):
                 logging.error(f"Check the error: {api_call}.")
                 raise Exception
             else:
@@ -75,7 +76,7 @@ class Orders:
             )
 
             if (api_call.get("counts") is not None and api_call.get("counts") >= 0 and
-                    api_call.get("results")[0].get("event") is None):
+                    len(api_call.get("results", [])) > 0 and api_call.get("results")[0].get("event") is None):
                 logging.error(f"Check the error: {api_call}.")
                 raise Exception
             else:

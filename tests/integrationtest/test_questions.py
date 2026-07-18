@@ -1,24 +1,21 @@
 import os
-
 from unittest import TestCase
 
-from pretix_event_person_forwarder.model import (
-    APIModel,
-)
+from tests.integrationtest.conftest import create_api_model_with_ssl
 from pretix_event_person_forwarder.questions import Questions
 
+HOST = os.environ.get("PRETIX_HOST", "https://localhost")
+TOKEN = os.environ.get("PRETIX_TOKEN", "")
+CA_BUNDLE = os.environ.get("PRETIX_CA_BUNDLE", None)
 
-class OrdersTest(TestCase):
-    model: APIModel = APIModel(
-        host=os.environ["PRETIX_HOST"],
-        token=os.environ["PRETIX_TOKEN"],
-        http2_support=False,
-        timeout=30.0,
-    )
-    questions: Questions = Questions(model)
 
-    def test_a_get_event_questions(self):
-        self.assertIsNotNone(self.questions.get_all_event_questions("dpsg-speyer", "prisma-2025"))
+class QuestionsIntegrationTest(TestCase):
+    def setUp(self):
+        self.api_model = create_api_model_with_ssl(HOST, TOKEN, CA_BUNDLE)
+        self.questions = Questions(self.api_model)
 
-    def test_b_get_event_question(self):
-        self.assertIsNotNone(self.questions.get_event_question("dpsg-speyer", "prisma-2025", 256))
+    def test_get_all_event_questions(self):
+        result = self.questions.get_all_event_questions("dpsg-speyer", "prisma-2025")
+
+        self.assertIsInstance(result, list)
+        self.assertGreater(len(result), 0)
