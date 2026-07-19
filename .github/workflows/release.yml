@@ -54,6 +54,9 @@ jobs:
     name: Publish Docs to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
 
@@ -64,16 +67,20 @@ jobs:
       - name: Set up Python 3.12
         run: uv python install 3.12
 
-      - name: Install the dependencies
+      - name: Install doc dependencies
         run: uv sync --extra docs
 
-      - name: Setup the GitHub user
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+      - name: Build Sphinx docs
+        run: uv run sphinx-build -b html docs docs/_build/html
 
-      - name: Update the GitHub pages documentation
-        run: uv run mkdocs gh-deploy --force --clean
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/_build/html
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v5
 
   github-release:
     name: Create GitHub Release

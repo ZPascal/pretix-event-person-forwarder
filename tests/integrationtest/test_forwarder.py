@@ -25,9 +25,7 @@ class ForwarderIntegrationTest(TestCase):
         self.dest_model: APIModel = api_model
 
     def test_a_forward_persons_skip_mode(self):
-        forwarder = Forwarder(
-            self.source_model, self.dest_model, RULES, "skip"
-        )
+        forwarder = Forwarder(self.source_model, self.dest_model, RULES, "skip")
         forwarder.forward_event_persons(
             "dpsg-speyer",
             "source-event",
@@ -36,9 +34,7 @@ class ForwarderIntegrationTest(TestCase):
         )
 
     def test_b_forward_persons_update_mode(self):
-        forwarder = Forwarder(
-            self.source_model, self.dest_model, RULES, "update"
-        )
+        forwarder = Forwarder(self.source_model, self.dest_model, RULES, "update")
         forwarder.forward_event_persons(
             "dpsg-speyer",
             "source-event",

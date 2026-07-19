@@ -24,51 +24,30 @@ class TestAPIModel(TestCase):
         self.assertTrue(model.follow_redirects)
 
     def test_api_model_custom_timeout(self):
-        model = APIModel(
-            host="https://example.com/",
-            token="test-token",
-            timeout=30.0
-        )
+        model = APIModel(host="https://example.com/", token="test-token", timeout=30.0)
 
         self.assertEqual(model.timeout, 30.0)
 
     def test_api_model_custom_headers(self):
         headers = {"X-Custom": "value"}
-        model = APIModel(
-            host="https://example.com/",
-            token="test-token",
-            headers=headers
-        )
+        model = APIModel(host="https://example.com/", token="test-token", headers=headers)
 
         self.assertEqual(model.headers, headers)
 
     def test_api_model_http2_support(self):
-        model = APIModel(
-            host="https://example.com/",
-            token="test-token",
-            http2_support=True
-        )
+        model = APIModel(host="https://example.com/", token="test-token", http2_support=True)
 
         self.assertTrue(model.http2_support)
 
     def test_api_model_basic_auth(self):
-        model = APIModel(
-            host="https://example.com/",
-            token="test-token",
-            username="user",
-            password="pass"
-        )
+        model = APIModel(host="https://example.com/", token="test-token", username="user", password="pass")
 
         self.assertEqual(model.username, "user")
         self.assertEqual(model.password, "pass")
 
     def test_api_model_custom_ssl_context(self):
         custom_ssl = ssl.create_default_context()
-        model = APIModel(
-            host="https://example.com/",
-            token="test-token",
-            ssl_context=custom_ssl
-        )
+        model = APIModel(host="https://example.com/", token="test-token", ssl_context=custom_ssl)
 
         self.assertEqual(model.ssl_context, custom_ssl)
 
@@ -79,29 +58,17 @@ class TestAPIModel(TestCase):
         self.assertIsInstance(model.ssl_context, ssl.SSLContext)
 
     def test_api_model_custom_retries(self):
-        model = APIModel(
-            host="https://example.com/",
-            token="test-token",
-            retries=5
-        )
+        model = APIModel(host="https://example.com/", token="test-token", retries=5)
 
         self.assertEqual(model.retries, 5)
 
     def test_api_model_retries_false(self):
-        model = APIModel(
-            host="https://example.com/",
-            token="test-token",
-            retries=False
-        )
+        model = APIModel(host="https://example.com/", token="test-token", retries=False)
 
         self.assertFalse(model.retries)
 
     def test_api_model_follow_redirects(self):
-        model = APIModel(
-            host="https://example.com/",
-            token="test-token",
-            follow_redirects=False
-        )
+        model = APIModel(host="https://example.com/", token="test-token", follow_redirects=False)
 
         self.assertFalse(model.follow_redirects)
 

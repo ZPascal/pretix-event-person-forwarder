@@ -15,10 +15,7 @@ class TestEventsGetEvents(TestCase):
         mock_api.return_value = {
             "count": 2,
             "counts": 2,
-            "results": [
-                {"name": {"en": "Event 1"}, "slug": "event1"},
-                {"name": {"en": "Event 2"}, "slug": "event2"}
-            ]
+            "results": [{"name": {"en": "Event 1"}, "slug": "event1"}, {"name": {"en": "Event 2"}, "slug": "event2"}],
         }
 
         result = self.events.get_events("test-org")
@@ -44,11 +41,7 @@ class TestEventsGetEvents(TestCase):
 
     @patch("pretix_event_person_forwarder.events.Api.call_the_api")
     def test_get_events_invalid_response_no_name(self, mock_api):
-        mock_api.return_value = {
-            "count": 1,
-            "counts": 1,
-            "results": [{"name": None, "slug": "event1"}]
-        }
+        mock_api.return_value = {"count": 1, "counts": 1, "results": [{"name": None, "slug": "event1"}]}
 
         with self.assertRaises(Exception):
             self.events.get_events("test-org")

@@ -94,16 +94,10 @@ class TestForwarderValidation(TestCase):
         return_value=[{"id": 312}],
     )
     def test_unknown_dest_question_id_raises_value_error(self, mock_questions):
-        bad_rules = {
-            "fields": {
-                "questions": [{"source_id": 256, "dest_id": 999}]
-            }
-        }
+        bad_rules = {"fields": {"questions": [{"source_id": 256, "dest_id": 999}]}}
         forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, bad_rules, "skip")
         with self.assertRaises(ValueError):
-            forwarder.forward_event_persons(
-                "src-org", "src-event", "dst-org", "dst-event"
-            )
+            forwarder.forward_event_persons("src-org", "src-event", "dst-org", "dst-event")
 
     @patch(
         "pretix_event_person_forwarder.forwarder.Api.call_the_api",
@@ -116,9 +110,7 @@ class TestForwarderValidation(TestCase):
     def test_no_items_in_destination_raises_value_error(self, mock_questions, mock_api):
         forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, RULES, "skip")
         with self.assertRaises(ValueError) as context:
-            forwarder.forward_event_persons(
-                "src-org", "src-event", "dst-org", "dst-event"
-            )
+            forwarder.forward_event_persons("src-org", "src-event", "dst-org", "dst-event")
         self.assertIn("No items found", str(context.exception))
 
     @patch("pretix_event_person_forwarder.forwarder.Api.call_the_api")
@@ -127,16 +119,10 @@ class TestForwarderValidation(TestCase):
         return_value=[{"id": 312}],
     )
     def test_rule_validation_runs_before_writes(self, mock_questions, mock_api):
-        bad_rules = {
-            "fields": {
-                "questions": [{"source_id": 256, "dest_id": 999}]
-            }
-        }
+        bad_rules = {"fields": {"questions": [{"source_id": 256, "dest_id": 999}]}}
         forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, bad_rules, "skip")
         with self.assertRaises(ValueError):
-            forwarder.forward_event_persons(
-                "src-org", "src-event", "dst-org", "dst-event"
-            )
+            forwarder.forward_event_persons("src-org", "src-event", "dst-org", "dst-event")
         mock_api.assert_not_called()
 
 
@@ -157,9 +143,7 @@ class TestForwarderCreateMode(TestCase):
         side_effect=[SOURCE_ORDERS, DEST_ORDERS_EMPTY],
     )
     def test_new_attendee_is_posted(self, mock_orders, mock_questions, mock_api):
-        self.forwarder.forward_event_persons(
-            "src-org", "src-event", "dst-org", "dst-event"
-        )
+        self.forwarder.forward_event_persons("src-org", "src-event", "dst-org", "dst-event")
         self.assertEqual(mock_api.call_count, 2)
         post_call = mock_api.call_args_list[1]
         posted = json.loads(post_call[1]["json_complete"])
@@ -187,9 +171,7 @@ class TestForwarderSkipMode(TestCase):
         side_effect=[SOURCE_ORDERS, DEST_ORDERS_WITH_JANE],
     )
     def test_existing_attendee_is_skipped(self, mock_orders, mock_questions, mock_api):
-        self.forwarder.forward_event_persons(
-            "src-org", "src-event", "dst-org", "dst-event"
-        )
+        self.forwarder.forward_event_persons("src-org", "src-event", "dst-org", "dst-event")
         self.assertEqual(mock_api.call_count, 1)
         self.assertNotIn("json_complete", mock_api.call_args[1])
 
@@ -211,9 +193,7 @@ class TestForwarderUpdateMode(TestCase):
         side_effect=[SOURCE_ORDERS, DEST_ORDERS_WITH_JANE],
     )
     def test_existing_attendee_is_patched(self, mock_orders, mock_questions, mock_api):
-        self.forwarder.forward_event_persons(
-            "src-org", "src-event", "dst-org", "dst-event"
-        )
+        self.forwarder.forward_event_persons("src-org", "src-event", "dst-org", "dst-event")
         self.assertEqual(mock_api.call_count, 2)
         patch_call = mock_api.call_args_list[1]
         path_arg = patch_call[0][0]
@@ -261,9 +241,7 @@ class TestForwarderUpdateMode(TestCase):
             }
         }
         forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, rules_no_questions, "update")
-        forwarder.forward_event_persons(
-            "src-org", "src-event", "dst-org", "dst-event"
-        )
+        forwarder.forward_event_persons("src-org", "src-event", "dst-org", "dst-event")
         self.assertEqual(mock_api.call_count, 2)
         post_call = mock_api.call_args_list[1]
         path_arg = post_call[0][0]
@@ -299,9 +277,7 @@ class TestForwarderUpdateMode(TestCase):
     )
     def test_duplicate_email_uses_latest_position(self, mock_orders, mock_questions, mock_api):
         forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, RULES, "update")
-        forwarder.forward_event_persons(
-            "src-org", "src-event", "dst-org", "dst-event"
-        )
+        forwarder.forward_event_persons("src-org", "src-event", "dst-org", "dst-event")
         self.assertEqual(mock_api.call_count, 2)
         patch_call = mock_api.call_args_list[1]
         path_arg = patch_call[0][0]
@@ -336,9 +312,7 @@ class TestForwarderUpdateMode(TestCase):
     )
     def test_destination_position_without_email_is_ignored(self, mock_orders, mock_questions, mock_api):
         forwarder = Forwarder(SOURCE_MODEL, DEST_MODEL, RULES, "update")
-        forwarder.forward_event_persons(
-            "src-org", "src-event", "dst-org", "dst-event"
-        )
+        forwarder.forward_event_persons("src-org", "src-event", "dst-org", "dst-event")
         self.assertEqual(mock_api.call_count, 2)
         post_call = mock_api.call_args_list[1]
         posted = json.loads(post_call[1]["json_complete"])

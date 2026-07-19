@@ -7,19 +7,19 @@ from .api import Api
 class Events:
     """The class includes all necessary methods to access the Pretix events API endpoints
 
-        Args:
-            pretix_api_model (APIModel): Inject a Grafana API model object that includes all necessary values and information
+    Args:
+        pretix_api_model (APIModel): Inject a Grafana API model object that includes all necessary values and information
 
-        Attributes:
-            pretix_api_model (APIModel): This is where we store the pretix_api_model
-        """
+    Attributes:
+        pretix_api_model (APIModel): This is where we store the pretix_api_model
+    """
 
     def __init__(self, pretix_api_model: APIModel):
         self.pretix_api_model = pretix_api_model
 
     def get_events(
-            self,
-            organizer: str,
+        self,
+        organizer: str,
     ) -> list:
         """The method includes a functionality to get all events of the organizer
 
@@ -39,23 +39,24 @@ class Events:
                 f"{APIEndpoints.ORGANIZERS.value}/{organizer}/{APIEndpoints.EVENTS.value}",
             )
 
-            if (api_call.get("counts") is not None and api_call.get("counts") >= 0 and
-                    len(api_call.get("results", [])) > 0 and
-                    api_call.get("results")[0].get("name") is None):
+            if (
+                api_call.get("counts") is not None
+                and api_call.get("counts") >= 0
+                and len(api_call.get("results", [])) > 0
+                and api_call.get("results")[0].get("name") is None
+            ):
                 logging.error(f"Check the error: {api_call}.")
                 raise Exception
             else:
                 return api_call.get("results")
         else:
-            logging.error(
-                "There is no organizer defined."
-            )
+            logging.error("There is no organizer defined.")
             raise ValueError
 
     def get_event(
-            self,
-            organizer: str,
-            event_name: str,
+        self,
+        organizer: str,
+        event_name: str,
     ) -> dict:
         """The method includes a functionality to get a event of the organizer
 
@@ -82,7 +83,5 @@ class Events:
             else:
                 return api_call
         else:
-            logging.error(
-                "There is no organizer or event_name defined."
-            )
+            logging.error("There is no organizer or event_name defined.")
             raise ValueError

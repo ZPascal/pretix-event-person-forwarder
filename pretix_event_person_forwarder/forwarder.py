@@ -10,18 +10,18 @@ from .questions import Questions
 class Forwarder:
     """The class includes all necessary methods to forward event persons between Pretix instances
 
-        Args:
-            source_api_model (APIModel): Inject an API model object for the source Pretix instance
-            dest_api_model (APIModel): Inject an API model object for the destination Pretix instance
-            rules (dict): A dictionary defining the field mapping rules between source and destination
-            mode (str): The forwarding mode; must be 'skip' to skip existing attendees or 'update' to patch them
+    Args:
+        source_api_model (APIModel): Inject an API model object for the source Pretix instance
+        dest_api_model (APIModel): Inject an API model object for the destination Pretix instance
+        rules (dict): A dictionary defining the field mapping rules between source and destination
+        mode (str): The forwarding mode; must be 'skip' to skip existing attendees or 'update' to patch them
 
-        Attributes:
-            source_api_model (APIModel): This is where we store the source_api_model
-            dest_api_model (APIModel): This is where we store the dest_api_model
-            rules (dict): This is where we store the rules
-            mode (str): This is where we store the mode
-        """
+    Attributes:
+        source_api_model (APIModel): This is where we store the source_api_model
+        dest_api_model (APIModel): This is where we store the dest_api_model
+        rules (dict): This is where we store the rules
+        mode (str): This is where we store the mode
+    """
 
     def __init__(
         self,
@@ -62,17 +62,12 @@ class Forwarder:
         """
 
         dest_question_ids = {
-            q["id"]
-            for q in Questions(self.dest_api_model).get_all_event_questions(
-                dest_organizer, dest_event
-            )
+            q["id"] for q in Questions(self.dest_api_model).get_all_event_questions(dest_organizer, dest_event)
         }
         for mapping in self.rules.get("fields", {}).get("questions", []):
             if mapping["dest_id"] not in dest_question_ids:
                 logging.error(f"Destination question ID {mapping['dest_id']} not found in event '{dest_event}'.")
-                raise ValueError(
-                    f"Destination question ID {mapping['dest_id']} not found in event '{dest_event}'."
-                )
+                raise ValueError(f"Destination question ID {mapping['dest_id']} not found in event '{dest_event}'.")
 
         items = Api(self.dest_api_model).call_the_api(
             f"{APIEndpoints.ORGANIZERS.value}/{dest_organizer}/{APIEndpoints.EVENTS.value}"
@@ -83,12 +78,8 @@ class Forwarder:
             logging.error(f"No items found in destination event '{dest_event}'. Cannot create orders.")
             raise ValueError(f"No items found in destination event '{dest_event}'.")
 
-        source_orders = Orders(self.source_api_model).get_event_orders(
-            source_organizer, source_event
-        )
-        dest_orders = Orders(self.dest_api_model).get_event_orders(
-            dest_organizer, dest_event
-        )
+        source_orders = Orders(self.source_api_model).get_event_orders(source_organizer, source_event)
+        dest_orders = Orders(self.dest_api_model).get_event_orders(dest_organizer, dest_event)
 
         dest_by_email: dict = {}
         for order in dest_orders:
@@ -99,16 +90,11 @@ class Forwarder:
                         logging.warning(f"Duplicate email in destination orders: {email}. Using latest position.")
                     dest_by_email[email] = {"order_code": order["code"], "position_id": position["id"]}
 
-        question_map = {
-            m["source_id"]: m["dest_id"]
-            for m in self.rules.get("fields", {}).get("questions", [])
-        }
+        question_map = {m["source_id"]: m["dest_id"] for m in self.rules.get("fields", {}).get("questions", [])}
 
         for order in source_orders:
             for position in order.get("positions", []):
-                self._process_position(
-                    position, dest_organizer, dest_event, dest_by_email, question_map, dest_item_id
-                )
+                self._process_position(position, dest_organizer, dest_event, dest_by_email, question_map, dest_item_id)
 
     def _process_position(
         self,

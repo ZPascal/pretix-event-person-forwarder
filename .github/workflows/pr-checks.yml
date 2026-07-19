@@ -1,52 +1,33 @@
-name: PR checks
+name: PR Checks
 
 on:
-  pull_request:
+  push:
     branches: [ main ]
+  pull_request:
 
 jobs:
 
-  pr-test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [ '3.10' ]
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: x64
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Execute the unittests
-        run: uv run --extra dev pytest tests/unittests
-
   pr-lint:
+    name: Lint
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [ '3.10' ]
-
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: ${{ matrix.python-version }}
-          architecture: x64
+          enable-cache: true
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Set up Python 3.12
+        run: uv python install 3.12
 
-      - name: Execute the linting checks
-        run: uv run --extra dev ruff check .
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run ruff check
+        run: uv run ruff check .
+
+      - name: Run ruff format check
+        run: uv run ruff format --check .
 
   pr-coverage:
     runs-on: ubuntu-latest
@@ -108,52 +89,57 @@ jobs:
           branch: ${{ github.head_ref }}
           atomic: false
 
-  pr-documentation:
+  pr-test:
+    name: Test / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: [ '3.9' ]
+        python-version: ["3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
         with:
-          persist-credentials: false
-          fetch-depth: 0
+          enable-cache: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run unit tests
+        run: uv run pytest tests/unittests --cov=. --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v7
         with:
-          python-version: ${{ matrix.python-version }}
-          architecture: x64
+          files: coverage.xml
+          fail_ci_if_error: false
 
-      - name: Install the requirements
-        run: pip install pydoc-markdown==4.6.3 mkdocs mkdocs-material
-
-      - name: Generate documentation
-        run: pydoc-markdown --render-toc && rm -rf docs/content && mv build/docs/* docs
-
-      - name: Check changed files
-        uses: tj-actions/verify-changed-files@v20
-        id: verify-changed-files
-        with:
-          files: |
-            docs
-
-      - name: Commit files
-        if: steps.verify-changed-files.outputs.files_changed == 'true'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add --force docs
-          git commit -m "docs: Add the documentation"
-
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        if: steps.verify-changed-files.outputs.files_changed == 'true'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.head_ref }}
-
-  pr-integrationtest:
+  pr-integration:
     uses: ./.github/workflows/integrationtest.yml
     secrets: inherit
+
+  pr-docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    needs: [ pr-lint, pr-coverage, pr-test, pr-integration ]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra docs
+
+      - name: Build Sphinx docs
+        run: uv run sphinx-build -W -b html docs docs/_build/html
