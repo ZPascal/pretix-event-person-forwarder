@@ -59,23 +59,16 @@ class Api:
             {"Authorization": f"Token {self.pretix_api_model.token}"},
         )
 
-        if (
-            self.pretix_api_model.username is not None
-            and self.pretix_api_model.password is not None
-        ):
+        if self.pretix_api_model.username is not None and self.pretix_api_model.password is not None:
             credentials: str = base64.b64encode(
-                str.encode(
-                    f"{self.pretix_api_model.username}:{self.pretix_api_model.password}"
-                )
+                str.encode(f"{self.pretix_api_model.username}:{self.pretix_api_model.password}")
             ).decode("utf-8")
             headers.update({"Authorization": f"Basic {credentials}"})
 
         headers["Content-Type"] = "application/json"
         headers["Accept"] = "application/json"
 
-        http: Union[httpx.Client, httpx.AsyncClient] = self.create_the_http_api_client(
-            headers
-        )
+        http: Union[httpx.Client, httpx.AsyncClient] = self.create_the_http_api_client(headers)
 
         if self.pretix_api_model.http2_support:
 
@@ -87,9 +80,7 @@ class Api:
 
             return asyncio.run(_execute_async_api_call())
 
-        return self._execute_the_api_call(
-            http, method, api_url, response_status_code, json_complete
-        )
+        return self._execute_the_api_call(http, method, api_url, response_status_code, json_complete)
 
     def _execute_the_api_call(
         self,
@@ -149,9 +140,7 @@ class Api:
                     logging.error("Please define the json_complete.")
                     raise Exception
             elif method.value == RequestsMethods.DELETE.value:
-                return self._check_the_api_call_response(
-                    http.request("DELETE", api_url), response_status_code
-                )
+                return self._check_the_api_call_response(http.request("DELETE", api_url), response_status_code)
             else:
                 logging.error("Please define a valid method.")
                 raise Exception
@@ -216,9 +205,7 @@ class Api:
                     logging.error("Please define the json_complete.")
                     raise Exception
             elif method.value == RequestsMethods.DELETE.value:
-                return self._check_the_api_call_response(
-                    await http.request("DELETE", api_url), response_status_code
-                )
+                return self._check_the_api_call_response(await http.request("DELETE", api_url), response_status_code)
             else:
                 logging.error("Please define a valid method.")
                 raise Exception
@@ -226,9 +213,7 @@ class Api:
             raise e
 
     @staticmethod
-    def _check_the_api_call_response(
-        response: any = None, response_status_code: bool = False
-    ) -> any:
+    def _check_the_api_call_response(response: any = None, response_status_code: bool = False) -> any:
         """The method includes a functionality to check the output of API call method for errors
 
         Args:
@@ -243,10 +228,7 @@ class Api:
         """
 
         if Api._check_if_valid_json(response.text):
-            if (
-                len(json.loads(response.text)) != 0
-                and isinstance(json.loads(response.text), dict)
-            ):
+            if len(json.loads(response.text)) != 0 and isinstance(json.loads(response.text), dict):
                 if (
                     "message" in json.loads(response.text).keys()
                     and json.loads(response.text)["message"] in ERROR_MESSAGES
@@ -305,9 +287,7 @@ class Api:
         else:
             return query_string
 
-    def create_the_http_api_client(
-        self, headers: dict = None
-    ) -> Union[httpx.Client, httpx.AsyncClient]:
+    def create_the_http_api_client(self, headers: dict = None) -> Union[httpx.Client, httpx.AsyncClient]:
         """The method includes a functionality to create the corresponding HTTP client
 
         Args:
@@ -321,9 +301,7 @@ class Api:
             verify=self.pretix_api_model.ssl_context,
             retries=self.pretix_api_model.retries,
         )
-        limits: httpx.Limits = httpx.Limits(
-            max_connections=self.pretix_api_model.num_pools
-        )
+        limits: httpx.Limits = httpx.Limits(max_connections=self.pretix_api_model.num_pools)
         http2: bool = self.pretix_api_model.http2_support
 
         if http2:
@@ -346,5 +324,5 @@ class Api:
                 headers=headers,
                 transport=transport,
                 verify=self.pretix_api_model.ssl_context,
-                follow_redirects=self.pretix_api_model.follow_redirects
+                follow_redirects=self.pretix_api_model.follow_redirects,
             )

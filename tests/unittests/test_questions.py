@@ -59,10 +59,7 @@ class TestQuestionsGetAllEventQuestions(TestCase):
         mock_api.return_value = {
             "count": 2,
             "counts": 2,
-            "results": [
-                {"id": 312, "question": {"en": "City"}},
-                {"id": 313, "question": {"en": "Country"}}
-            ]
+            "results": [{"id": 312, "question": {"en": "City"}}, {"id": 313, "question": {"en": "Country"}}],
         }
 
         result = self.questions.get_all_event_questions("test-org", "test-event")
@@ -92,11 +89,7 @@ class TestQuestionsGetAllEventQuestions(TestCase):
 
     @patch("pretix_event_person_forwarder.questions.Api.call_the_api")
     def test_get_all_event_questions_invalid_response(self, mock_api):
-        mock_api.return_value = {
-            "count": 1,
-            "counts": 1,
-            "results": [{"id": None, "question": {"en": "City"}}]
-        }
+        mock_api.return_value = {"count": 1, "counts": 1, "results": [{"id": None, "question": {"en": "City"}}]}
 
         with self.assertRaises(Exception):
             self.questions.get_all_event_questions("test-org", "test-event")

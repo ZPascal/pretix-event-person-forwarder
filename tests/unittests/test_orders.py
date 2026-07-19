@@ -19,11 +19,9 @@ class TestOrdersGetEventOrders(TestCase):
                 {
                     "code": "ABC123",
                     "event": "test-event",
-                    "positions": [
-                        {"id": 1, "attendee_name": "Jane Doe", "attendee_email": "jane@example.com"}
-                    ]
+                    "positions": [{"id": 1, "attendee_name": "Jane Doe", "attendee_email": "jane@example.com"}],
                 }
-            ]
+            ],
         }
 
         result = self.orders.get_event_orders("test-org", "test-event")
@@ -56,11 +54,7 @@ class TestOrdersGetEventOrders(TestCase):
     @patch("pretix_event_person_forwarder.orders.Api.call_the_api")
     def test_get_event_orders_invalid_response(self, mock_api):
         """Test when API response has results but event is None (indicates error)"""
-        mock_api.return_value = {
-            "count": 1,
-            "counts": 1,
-            "results": [{"code": "ABC", "event": None}]
-        }
+        mock_api.return_value = {"count": 1, "counts": 1, "results": [{"code": "ABC", "event": None}]}
 
         with self.assertRaises(Exception):
             self.orders.get_event_orders("test-org", "test-event")
@@ -78,8 +72,8 @@ class TestOrdersGetAllOrders(TestCase):
             "counts": 2,
             "results": [
                 {"code": "ORD1", "event": "event1", "positions": []},
-                {"code": "ORD2", "event": "event2", "positions": []}
-            ]
+                {"code": "ORD2", "event": "event2", "positions": []},
+            ],
         }
 
         result = self.orders.get_all_orders("test-org")
@@ -105,11 +99,7 @@ class TestOrdersGetAllOrders(TestCase):
 
     @patch("pretix_event_person_forwarder.orders.Api.call_the_api")
     def test_get_all_orders_invalid_response(self, mock_api):
-        mock_api.return_value = {
-            "count": 1,
-            "counts": 1,
-            "results": [{"code": "ABC", "event": None}]
-        }
+        mock_api.return_value = {"count": 1, "counts": 1, "results": [{"code": "ABC", "event": None}]}
 
         with self.assertRaises(Exception):
             self.orders.get_all_orders("test-org")
