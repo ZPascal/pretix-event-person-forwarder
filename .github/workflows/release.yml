@@ -6,8 +6,9 @@ on:
       - "v*"
 
 permissions:
-  contents: write   # create GitHub Release and push gh-pages
+  contents: write   # create GitHub Release
   id-token: write   # OIDC token for PyPI trusted publishing
+  pages: write      # deploy to GitHub Pages
 
 jobs:
 
