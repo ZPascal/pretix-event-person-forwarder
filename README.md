@@ -1,4 +1,4 @@
-# Pretix Event Person Forwarder
+# Pretix Event Person Forwarder ![Coverage report](https://github.com/ZPascal/pretix-event-person-forwarder/blob/main/docs/coverage.svg)
 
 The Pretix Event Person Forwarder is a Python library that enables programmatic forwarding of event, order, and question data from Pretix to external systems via HTTP. Forward attendee registrations, order updates, and survey responses to webhooks, CRM systems, custom APIs or other Pretix systems.
 

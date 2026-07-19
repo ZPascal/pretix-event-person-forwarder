@@ -25,6 +25,11 @@ jobs:
       - name: Set up Python 3.12
         run: uv python install 3.12
 
+      - name: Create temporary README for package
+        run: |
+          sed 's/ *!\[Coverage report\](.*//g' README.md > README.pypi.md
+          cp README.pypi.md README.md
+
       - name: Build sdist and wheel
         run: uv build
 
