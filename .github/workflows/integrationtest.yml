@@ -159,7 +159,7 @@ jobs:
           architecture: x64
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
 
       - name: Execute the integrationtests (http1.1)
         run: uv run --extra dev python -m unittest discover tests/integrationtest
